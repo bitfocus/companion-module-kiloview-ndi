@@ -1,0 +1,22 @@
+{
+	"name": "kiloview-ndi",
+	"version": "1.0.0",
+	"api_version": "1.0.0",
+	"keywords": [
+		"NDI",
+		"Video"
+	],
+	"manufacturer": "Kiloview",
+	"product": "N40",
+	"shortname": "kiloview",
+	"description": "Module to control Kiloview N40 encoder/decoder",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"author": "Håkon Nessjøen <haakon@bitfocus.io>",
+	"license": "MIT",
+	"dependencies": {
+		"kiloview-ndi": "^1.0.1"
+	}
+}
