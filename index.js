@@ -1,11 +1,11 @@
-const instance_skel = require('../../instance_skel');
-const { initVariables } = require('./variables');
+const instance_skel = require('../../instance_skel')
+const { initVariables } = require('./variables')
 const { initFeedbacks } = require('./feedbacks')
-const { initPresets } = require('./presets');
-const kiloviewNDI = require('kiloview-ndi');
-let debug = () => {};
+const { initPresets } = require('./presets')
+const kiloviewNDI = require('kiloview-ndi')
+let debug = () => {}
 
-const INTERVAL = 1000;
+const INTERVAL = 1000
 
 /**
  * Companion instance class for the kiloview ndi endpoint.
@@ -16,23 +16,23 @@ const INTERVAL = 1000;
  * @author Håkon Nessjøen <haakon@bitfocus.io>>
  */
 class instance extends instance_skel {
-	counter = 0;
-	sources = [ { id: 'null', url: '', label: '- No sources available -'} ];
+	counter = 0
+	sources = [{ id: 'null', url: '', label: '- No sources available -' }]
 
 	state = {
-		mode: 'N/A'
-	};
+		mode: 'N/A',
+	}
 
 	converterModes = [
 		{
 			id: 'encoder',
-			label: 'Encoder'
+			label: 'Encoder',
 		},
 		{
 			id: 'decoder',
-			label: 'Decoder'
-		}
-	];
+			label: 'Decoder',
+		},
+	]
 
 	/**
 	 * Create an instance of a ndi module
@@ -43,9 +43,9 @@ class instance extends instance_skel {
 	 * @since 1.0.0
 	 */
 	constructor(system, id, config) {
-		super(system, id, config);
+		super(system, id, config)
 
-		this.actions(); // export actions
+		this.actions() // export actions
 	}
 
 	/**
@@ -56,35 +56,33 @@ class instance extends instance_skel {
 	 * @since 1.0.0
 	 */
 	actions(system) {
-		var actions = {};
+		const actions = {}
 
 		actions['modeSwitch'] = {
 			label: 'Switch mode',
 			options: [
 				{
-					type:     'dropdown',
-					label:    'Mode',
-					id:       'mode',
-					required: true,
+					type: 'dropdown',
+					label: 'Mode',
+					id: 'mode',
 					default: 'decoder',
-					choices: this.converterModes
-				}
-			]
-		};
+					choices: this.converterModes,
+				},
+			],
+		}
 		actions['setPreset'] = {
 			label: 'Activate preset',
 			options: [
 				{
-					type:     'number',
-					label:    'Number',
-					id:       'id',
-					required: true,
+					type: 'number',
+					label: 'Number',
+					id: 'id',
 					default: 1,
 					min: 1,
-					max: 10
-				}
-			]
-		};
+					max: 10,
+				},
+			],
+		}
 
 		actions['setURL'] = {
 			label: 'Set NDI source',
@@ -93,14 +91,13 @@ class instance extends instance_skel {
 					type: 'dropdown',
 					label: 'Source',
 					id: 'url',
-					required: true,
 					choices: this.sources,
-					default: this.sources[0].id
-				}
-			]
+					default: this.sources[0].id,
+				},
+			],
 		}
 
-		this.setActions(actions);
+		this.setActions(actions)
 	}
 
 	/**
@@ -111,36 +108,34 @@ class instance extends instance_skel {
 	 * @since 1.0.0
 	 */
 	async action(action) {
-		var cmd;
-		var opt = action.options;
+		const opt = action.options
 
 		if (!this.converter) {
-			return;
+			return
 		}
 
 		try {
 			switch (action.action) {
 				case 'modeSwitch':
-					this.setVariable('mode', 'N/A');
-					this.setVariable('online', 'N/A');
-					this.setVariable('video_signal', 'N/A');
-					this.state.online = undefined;
-					this.state.mode = undefined;
-					this.state.video_signal = undefined;
-					this.converter.modeSwitch(opt.mode);
-					this.checkFeedbacks();
-					break;
+					this.setVariable('mode', 'N/A')
+					this.setVariable('online', 'N/A')
+					this.setVariable('video_signal', 'N/A')
+					this.state.online = undefined
+					this.state.mode = undefined
+					this.state.video_signal = undefined
+					this.converter.modeSwitch(opt.mode)
+					this.checkFeedbacks()
+					break
 				case 'setPreset':
-					this.converter.decoderCurrentSetPreset(opt.id);
-					break;
+					this.converter.decoderCurrentSetPreset(opt.id)
+					break
 				case 'setURL':
-					const [ name, ip, port ] = Buffer.from(opt.url, 'base64').toString().split(/:/);
-					this.converter.decoderCurrentSetUrl(name, ip + ':' + port);
-					break;
+					const [name, ip, port] = Buffer.from(opt.url, 'base64').toString().split(/:/)
+					this.converter.decoderCurrentSetUrl(name, ip + ':' + port)
+					break
 			}
-
 		} catch (e) {
-			this.log("error", "Error running action " + action.action + ": " + e.message);
+			this.log('error', 'Error running action ' + action.action + ': ' + e.message)
 		}
 	}
 
@@ -158,7 +153,8 @@ class instance extends instance_skel {
 				id: 'info',
 				width: 12,
 				label: 'Information',
-				value: 'This modules currently supports Kiloview N40 devices. Make sure to enable HTTP API access on the user you are using, this is default off!',
+				value:
+					'This modules currently supports Kiloview N40 devices. Make sure to enable HTTP API access on the user you are using, this is default off!',
 			},
 			{
 				type: 'textinput',
@@ -201,12 +197,11 @@ class instance extends instance_skel {
 	 * @since 1.0.0
 	 */
 	destroy() {
-
 		if (this.pollTimer !== undefined) {
-			clearInterval(this.pollTimer);
+			clearInterval(this.pollTimer)
 		}
 
-		debug("destroy", this.id);
+		debug('destroy', this.id)
 	}
 
 	/**
@@ -217,16 +212,15 @@ class instance extends instance_skel {
 	 * @since 1.0.0
 	 */
 	init() {
-		debug = this.debug;
+		debug = this.debug
 
 		try {
-			this.status(this.STATUS_WARNING, 'Connecting');
-			this.initFeedbacks();
-			this.initPresets();
-			this.initVariables();
-
+			this.status(this.STATUS_WARNING, 'Connecting')
+			this.initFeedbacks()
+			this.initPresets()
+			this.initVariables()
 		} catch (e) {
-			console.error(e);
+			console.error(e)
 		}
 		this.initConnection()
 	}
@@ -239,9 +233,9 @@ class instance extends instance_skel {
 	 */
 	initFeedbacks() {
 		const feedbacks = initFeedbacks.bind(this)()
-		this.setFeedbackDefinitions(feedbacks);
+		this.setFeedbackDefinitions(feedbacks)
 	}
-	
+
 	/**
 	 * INTERNAL: initialize presets.
 	 *
@@ -249,7 +243,7 @@ class instance extends instance_skel {
 	 * @since 1.1.0
 	 */
 	initPresets() {
-		this.setPresetDefinitions(initPresets.bind(this)());
+		this.setPresetDefinitions(initPresets.bind(this)())
 	}
 
 	/**
@@ -269,98 +263,99 @@ class instance extends instance_skel {
 	 * @since 1.0.0
 	 */
 	initConnection() {
-		this.pollTimer = setInterval(() => this.checkState(), 2000);
-		this.updateConfig(this.config);
+		this.pollTimer = setInterval(() => this.checkState(), 2000)
+		this.updateConfig(this.config)
 	}
 
 	async checkState() {
 		if (!this.converter) {
-			return;
+			return
 		}
 
 		try {
-			const mode = await this.converter.modeGet();
-			this.setVariable('mode', mode.mode);
-			this.state.mode = mode.mode;
-			this.status(this.STATUS_OK, 'Connected');
-			this.checkFeedbacks('mode');
+			const mode = await this.converter.modeGet()
+			this.setVariable('mode', mode.mode)
+			this.state.mode = mode.mode
+			this.status(this.STATUS_OK, 'Connected')
+			this.checkFeedbacks('mode')
 		} catch (e) {
-			debug('Mode get error: %o', e.message);
-			this.status(this.STATUS_ERROR, 'Error connecting to device');
-			this.setVariable('mode', 'N/A');
-			this.state.mode = 'N/A';
-			return;
+			debug('Mode get error: %o', e.message)
+			this.status(this.STATUS_ERROR, 'Error connecting to device')
+			this.setVariable('mode', 'N/A')
+			this.state.mode = 'N/A'
+			return
 		}
 
 		try {
 			if (this.state.mode === 'decoder') {
-				const info = await this.converter.decoderCurrentStatus();
+				const info = await this.converter.decoderCurrentStatus()
 
-				let bitrate = info.bitrate;
+				let bitrate = info.bitrate
 				if (bitrate < 1024) {
-					bitrate = bitrate + ' Kbps';
-				} else {
-					bitrate = Math.round(bitrate / 1024) + ' Mbps';
-				}
-				this.setVariable('resolution', info.resolution || 'N/A');
-				this.setVariable('bitrate', info.bitrate ? bitrate : 'N/A');
-				this.setVariable('streamname', info.name || 'N/A');
-
-				this.setVariable('online', info.online ? 'Yes' : 'No');
-				if (this.state.online !== info.online) {
-					this.state.online = info.online;
-				}
-				this.checkFeedbacks('online');
-				this.state.resolution = info.resolution;
-				this.state.bitrate = info.bitrate;
-				this.state.streamname = info.name;
-			} else if (this.state.mode === 'encoder') {
-				const info = await this.converter.encoderNdiStatus();
-
-				let bitrate = info.bitrate;
-				if (bitrate < 1024) {
-					bitrate = bitrate + ' Kbps';
+					bitrate = bitrate + ' Kbps'
 				} else {
 					bitrate = Math.round(bitrate / 1024) + ' Mbps'
 				}
-				this.setVariable('resolution', info.resolution || 'N/A');
-				this.setVariable('bitrate', info.bitrate ? bitrate : 'N/A');
+				this.setVariable('resolution', info.resolution || 'N/A')
+				this.setVariable('bitrate', info.bitrate ? bitrate : 'N/A')
+				this.setVariable('streamname', info.name || 'N/A')
 
-				this.setVariable('video_signal', info.video_signal ? 'Yes' : 'No');
+				this.setVariable('online', info.online ? 'Yes' : 'No')
+				if (this.state.online !== info.online) {
+					this.state.online = info.online
+				}
+				this.checkFeedbacks('online')
+				this.state.resolution = info.resolution
+				this.state.bitrate = info.bitrate
+				this.state.streamname = info.name
+			} else if (this.state.mode === 'encoder') {
+				const info = await this.converter.encoderNdiStatus()
+
+				let bitrate = info.bitrate
+				if (bitrate < 1024) {
+					bitrate = bitrate + ' Kbps'
+				} else {
+					bitrate = Math.round(bitrate / 1024) + ' Mbps'
+				}
+				this.setVariable('resolution', info.resolution || 'N/A')
+				this.setVariable('bitrate', info.bitrate ? bitrate : 'N/A')
+
+				this.setVariable('video_signal', info.video_signal ? 'Yes' : 'No')
 				if (this.state.video_signal !== info.video_signal) {
-					this.state.video_signal = info.video_signal;
-					this.checkFeedbacks('video_signal');
+					this.state.video_signal = info.video_signal
+					this.checkFeedbacks('video_signal')
 				}
 
-				this.state.resolution = info.resolution;
-				this.state.bitrate = info.bitrate;
+				this.state.resolution = info.resolution
+				this.state.bitrate = info.bitrate
 			}
 
-			if (this.config.discovery && this.state.mode === 'decoder' && this.counter++ % 5 == 0) { // every 10 seconds
-				const sources = await this.converter.decoderDiscoveryGet();
-				this.sources = [];
+			if (this.config.discovery && this.state.mode === 'decoder' && this.counter++ % 5 == 0) {
+				// every 10 seconds
+				const sources = await this.converter.decoderDiscoveryGet()
+				this.sources = []
 
 				if (sources && sources instanceof Array) {
-					sources.forEach(source => {
+					sources.forEach((source) => {
 						this.sources.push({
 							id: Buffer.from(source.name + ':' + source.url).toString('base64'),
 							label: source.name,
-						});
+						})
 
 						if (source.children?.length) {
-							source.children.forEach(subsource => {
+							source.children.forEach((subsource) => {
 								this.sources.push({
 									id: Buffer.from(subsource.name + ':' + subsource.url).toString('base64'),
 									label: subsource.name,
-								});
-							});
+								})
+							})
 						}
-					});
+					})
 				} else {
-					this.sources = [ { id: 'null', url: '', label: '- No sources available -'} ];
+					this.sources = [{ id: 'null', url: '', label: '- No sources available -' }]
 				}
 
-				this.actions();
+				this.actions()
 			}
 		} catch (e) {
 			debug('Error with info: ' + e.message)
@@ -376,26 +371,26 @@ class instance extends instance_skel {
 	 * @since 1.0.0
 	 */
 	updateConfig(config) {
-		var resetConnection = false;
-
-		if (this.config.address !== config.address || this.config.username !== config.username || this.config.password !== config.password) {
-			this.status(this.STATUS_WARNING, 'Connecting');
+		if (
+			this.config.address !== config.address ||
+			this.config.username !== config.username ||
+			this.config.password !== config.password
+		) {
+			this.status(this.STATUS_WARNING, 'Connecting')
 		}
 
-		this.config = config;
+		this.config = config
 
 		if (config.address && config.username) {
-			this.converter = new kiloviewNDI(config.address, config.username, config.password);
+			this.converter = new kiloviewNDI(config.address, config.username, config.password)
 		} else {
-			this.converter = null;
+			this.converter = null
 		}
 
-		this.actions();
-		this.initFeedbacks();
-		//this.initPresets();
-		this.initVariables();
+		this.actions()
+		this.initFeedbacks()
+		this.initVariables()
 	}
-
 }
 
-exports = module.exports = instance;
+exports = module.exports = instance
