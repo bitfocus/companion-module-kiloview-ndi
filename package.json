@@ -18,5 +18,13 @@
 	"license": "MIT",
 	"dependencies": {
 		"kiloview-ndi": "^1.0.1"
+	},
+	"homepage": "https://github.com/bitfocus/companion-module-kiloview-ndi#readme",
+	"bugs": {
+		"url": "https://github.com/bitfocus/companion-module-kiloview-ndi/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/bitfocus/companion-module-kiloview-ndi.git"
 	}
 }
