@@ -123,15 +123,15 @@ class instance extends instance_skel {
 					this.state.online = undefined
 					this.state.mode = undefined
 					this.state.video_signal = undefined
-					this.converter.modeSwitch(opt.mode)
+					await this.converter.modeSwitch(opt.mode)
 					this.checkFeedbacks()
 					break
 				case 'setPreset':
-					this.converter.decoderCurrentSetPreset(opt.id)
+					await this.converter.decoderCurrentSetPreset(opt.id)
 					break
 				case 'setURL':
 					const [name, ip, port] = Buffer.from(opt.url, 'base64').toString().split(/:/)
-					this.converter.decoderCurrentSetUrl(name, ip + ':' + port)
+					await this.converter.decoderCurrentSetUrl(name, ip + ':' + port)
 					break
 			}
 		} catch (e) {
