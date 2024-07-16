@@ -1,0 +1,139 @@
+const { combineRgb } = require('@companion-module/base')
+
+module.exports = {
+	initFeedbacks: function () {
+		let self = this
+		let feedbacks = {}
+
+		const colorWhite = combineRgb(255, 255, 255) // White
+		const colorRed = combineRgb(255, 0, 0) // Red
+
+		feedbacks.mode = {
+			type: 'boolean',
+			name: 'Converter Mode',
+			description: 'Change the button color based on the Converter Mode',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Converter Mode',
+					id: 'mode',
+					default: self.CHOICES_CONVERTER_MODES[0].id,
+					choices: self.CHOICES_CONVERTER_MODES,
+				},
+			],
+			callback: function (feedback, bank) {
+				let options = feedback.options
+				if (options.mode == self.STATE.mode) {
+					return true
+				}
+				return false
+			},
+		}
+
+		if (self.STATE.mode === 'encoder') {
+			feedbacks.videoSignal = {
+				type: 'boolean',
+				name: 'Encoder Video Signal is Online/Offline',
+				description: 'If video signal is online or offline, change the colors of the button',
+				defaultStyle: {
+					color: colorWhite,
+					bgcolor: colorRed,
+				},
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Change color if source is',
+						id: 'compare',
+						default: 'online',
+						choices: [
+							{ id: 'online', label: 'Online' },
+							{ id: 'offline', label: 'Offline' },
+						],
+					},
+				],
+				callback: function (feedback, bank) {
+					let options = feedback.options
+					if (options.compare === 'online' && self.STATE.info.data.video_signal === true) {
+						return true
+					}
+					if (options.compare === 'offline' && self.STATE.info.data.video_signal === false) {
+						return true
+					}
+
+					return false
+				},
+			}
+
+			feedbacks.audioSignal = {
+				type: 'boolean',
+				name: 'Encoder Audio Source is Online/Offline',
+				description: 'If audio source is online or offline, change the colors of the button',
+				defaultStyle: {
+					color: colorWhite,
+					bgcolor: colorRed,
+				},
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Change color if source is',
+						id: 'compare',
+						default: 'online',
+						choices: [
+							{ id: 'online', label: 'Online' },
+							{ id: 'offline', label: 'Offline' },
+						],
+					},
+				],
+				callback: function (feedback, bank) {
+					let options = feedback.options
+					if (options.compare === 'online' && self.STATE.info.data.audio_signal === true) {
+						return true
+					}
+					if (options.compare === 'offline' && self.STATE.info.dta.audio_signal === false) {
+						return true
+					}
+
+					return false
+				},
+			}
+		} else {
+			//decoder feedbacks
+			feedbacks.online = {
+				type: 'boolean',
+				name: 'Selected NDI Source is Online/Offline',
+				description: 'If selected NDI source is online or offline, change the colors of the button',
+				defaultStyle: {
+					color: colorWhite,
+					bgcolor: colorRed,
+				},
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Change color if source is',
+						id: 'compare',
+						default: 'online',
+						choices: [
+							{ id: 'online', label: 'Online' },
+							{ id: 'offline', label: 'Offline' },
+						],
+					},
+				],
+				callback: function (feedback, bank) {
+					let options = feedback.options
+					if (options.compare === 'online' && self.STATE.info.data.online === true) {
+						return { color: options.fg, bgcolor: options.bg }
+					}
+					if (options.compare === 'offline' && self.STATE.info.data.online === false) {
+						return { color: options.fg, bgcolor: options.bg }
+					}
+				},
+			}
+		}
+
+		self.setFeedbackDefinitions(feedbacks)
+	},
+}
