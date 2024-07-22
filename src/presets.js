@@ -7,6 +7,8 @@ module.exports = {
 
 		const colorWhite = combineRgb(255, 255, 255) // White
 		const colorBlack = combineRgb(0, 0, 0) // Black
+		const colorRed = combineRgb(255, 0, 0) // Red
+		const colorGreen = combineRgb(0, 255, 0) // Green
 
 		presets = [
 			{
@@ -37,6 +39,10 @@ module.exports = {
 						feedbackId: 'mode',
 						options: {
 							mode: 'encoder',
+						},
+						style: {
+							color: colorWhite,
+							bgcolor: colorRed,
 						},
 					},
 				],
@@ -69,6 +75,10 @@ module.exports = {
 						feedbackId: 'mode',
 						options: {
 							mode: 'decoder',
+						},
+						style: {
+							color: colorWhite,
+							bgcolor: colorRed,
 						},
 					},
 				],
@@ -127,11 +137,19 @@ module.exports = {
 						options: {
 							compare: 'online',
 						},
+						style: {
+							color: colorWhite,
+							bgcolor: colorGreen,
+						},
 					},
 					{
 						feedbackId: 'video_signal',
 						options: {
 							compare: 'offline',
+						},
+						style: {
+							color: colorWhite,
+							bgcolor: colorRed,
 						},
 					},
 				],
@@ -154,36 +172,63 @@ module.exports = {
 						options: {
 							compare: 'online',
 						},
+						style: {
+							color: colorWhite,
+							bgcolor: colorGreen,
+						},
 					},
 					{
 						feedbackId: 'online',
 						options: {
 							compare: 'offline',
 						},
-					},
-				],
-			})
-		}
-		for (let i = 1; i <= 10; ++i) {
-			presets.push({
-				category: 'Decoder',
-				type: 'button',
-				name: 'Go to Preset ' + i,
-				style: {
-					text: String(i),
-					size: 'auto',
-					color: colorWhite,
-					bgcolor: colorBlack,
-				},
-				steps: [
-					{
-						actionId: 'setPreset',
-						options: {
-							id: String(i),
+						style: {
+							color: colorWhite,
+							bgcolor: colorRed,
 						},
 					},
 				],
 			})
+
+			for (let i = 1; i <= self.CHOICES_PRESETS.length; i++) {
+				presets.push({
+					category: 'Decoder',
+					type: 'button',
+					name: 'Go to Preset ' + i,
+					style: {
+						text: `$(kiloview:preset${i}_channel_name)`,
+						size: '14',
+						color: colorWhite,
+						bgcolor: colorBlack,
+					},
+					steps: [
+						{
+							down: [
+								{
+									actionId: 'setPreset',
+									options: {
+										preset: String(i),
+									},
+								},
+							],
+							up: [],
+						},
+					],
+					feedbacks: [
+						{
+							feedbackId: 'preset_current',
+							options: {
+								preset: String(i),
+								compare: true,
+							},
+							style: {
+								color: colorWhite,
+								bgcolor: colorRed,
+							},
+						},
+					],
+				})
+			}
 		}
 
 		presets.push({
@@ -210,7 +255,7 @@ module.exports = {
 				color: colorWhite,
 				bgcolor: colorBlack,
 			},
-			actions: [],
+			steps: [],
 			feedbacks: [],
 		})
 

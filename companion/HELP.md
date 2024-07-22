@@ -31,6 +31,8 @@ This module will allow you to control Kiloview NDI devices.
     -   Input Audio Signal is Online/Offline
 -   Decoder Feedbacks:
     -   Selected NDI Source is Online/Offline
+    -   Selected Preset is Enabled
+    -   Selected Preset is Current Preset
 
 ## Variables
 

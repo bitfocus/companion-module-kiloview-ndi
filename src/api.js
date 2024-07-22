@@ -148,6 +148,17 @@ module.exports = {
 			if (self.STATE.mode == 'decoder') {
 				const info = await self.DEVICE.decoderCurrentStatus()
 				self.STATE.info = info
+
+				//get presets
+				const presets = await self.DEVICE.decoderPresets()
+				//only update if different
+				if (JSON.stringify(self.STATE.presets) !== JSON.stringify(presets)) {
+					self.log('info', 'NDI Presets have changed. Updating Presets...')
+					self.STATE.presets = presets
+					self.initActions()
+					self.initPresets()
+				}
+				
 			} else if (self.STATE.mode == 'encoder') {
 				const info = await self.DEVICE.encoderNdiStatus()
 				self.STATE.info = info

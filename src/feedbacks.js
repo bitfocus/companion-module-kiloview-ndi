@@ -132,6 +132,81 @@ module.exports = {
 					}
 				},
 			}
+
+			feedbacks.preset_enabled = {
+				type: 'boolean',
+				name: 'Selected Preset is Enabled',
+				description: 'If selected preset is enabled, change the colors of the button',
+				defaultStyle: {
+					color: colorWhite,
+					bgcolor: colorRed,
+				},
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Preset',
+						id: 'preset',
+						default: self.CHOICES_PRESETS[0].id,
+						choices: self.CHOICES_PRESETS,
+					},
+				],
+				callback: function (feedback, bank) {
+					let options = feedback.options
+					let preset = self.STATE.presets.data.find(
+						(preset) => preset.id.toString() === options.preset.toString()
+					)
+
+					if (preset && preset.enable) {
+						return true
+					}
+
+					return false
+				},
+			}
+
+			feedbacks.preset_current = {
+				type: 'boolean',
+				name: 'Selected Preset is Current Preset',
+				description: 'If selected preset is the current preset, change the colors of the button',
+				defaultStyle: {
+					color: colorWhite,
+					bgcolor: colorRed,
+				},
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Preset',
+						id: 'preset',
+						default: self.CHOICES_PRESETS[0].id,
+						choices: self.CHOICES_PRESETS,
+					},
+					{
+						type: 'dropdown',
+						label: 'Change color if preset is',
+						id: 'compare',
+						default: true,
+						choices: [
+							{ id: true, label: 'Current' },
+							{ id: false, label: 'Not Current' },
+						],
+					},
+				],
+				callback: function (feedback, bank) {
+					let options = feedback.options
+
+					if (self.STATE.presets && self.STATE.presets.data) {
+						let preset = self.STATE.presets.data.find(
+							(preset) => preset.id.toString() === options.preset.toString()
+						)
+
+						if (preset && preset.current == options.compare) {
+							return true
+						}
+					}
+
+					return false
+				},
+			}
 		}
 
 		self.setFeedbackDefinitions(feedbacks)

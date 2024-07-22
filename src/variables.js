@@ -17,6 +17,20 @@ module.exports = {
 			variables.push({ variableId: 'codec', name: 'NDI Codec' })
 			variables.push({ variableId: 'streamname', name: 'NDI Stream Name' })
 			variables.push({ variableId: 'online_state', name: 'NDI Source Online' })
+
+			//presets 1-9
+			for (let i = 1; i <= self.CHOICES_PRESETS.length; i++) {
+				//enabled, group, name, device_name, channel_name, url, ip, online, current
+				variables.push({ variableId: 'preset' + i + '_enabled', name: 'Preset ' + i + ' Enabled' })
+				variables.push({ variableId: 'preset' + i + '_group', name: 'Preset ' + i + ' Group' })
+				variables.push({ variableId: 'preset' + i + '_name', name: 'Preset ' + i + ' Name' })
+				variables.push({ variableId: 'preset' + i + '_device_name', name: 'Preset ' + i + ' Device Name' })
+				variables.push({ variableId: 'preset' + i + '_channel_name', name: 'Preset ' + i + ' Channel Name' })
+				variables.push({ variableId: 'preset' + i + '_url', name: 'Preset ' + i + ' URL' })
+				variables.push({ variableId: 'preset' + i + '_ip', name: 'Preset ' + i + ' IP' })
+				variables.push({ variableId: 'preset' + i + '_online', name: 'Preset ' + i + ' Online' })
+				variables.push({ variableId: 'preset' + i + '_current', name: 'Preset ' + i + ' Current' })
+			}
 		}
 
 		variables.push({ variableId: 'cpu_cores', name: 'CPU Cores' })
@@ -50,6 +64,27 @@ module.exports = {
 					variableObj.codec = self.STATE.info.data.codec
 					variableObj.streamname = self.STATE.info.data.name || ''
 					variableObj.online_state = self.STATE.info.data.online ? 'True' : 'False'
+
+					if (self.STATE.presets) {
+						//presets 1-9
+						for (let i = 1; i <= self.CHOICES_PRESETS.length; i++) {
+							//find the preset by id in self.STATE.presets
+							let presetObj = self.STATE.presets.data.find(
+								(preset) => preset.id.toString() == i.toString()
+							)
+							if (presetObj) {
+								variableObj['preset' + i + '_enabled'] = presetObj.enable ? 'True' : 'False'
+								variableObj['preset' + i + '_group'] = presetObj.group
+								variableObj['preset' + i + '_name'] = presetObj.name
+								variableObj['preset' + i + '_device_name'] = presetObj.device_name
+								variableObj['preset' + i + '_channel_name'] = presetObj.channel_name
+								variableObj['preset' + i + '_url'] = presetObj.url
+								variableObj['preset' + i + '_ip'] = presetObj.ip
+								variableObj['preset' + i + '_online'] = presetObj.online ? 'True' : 'False'
+								variableObj['preset' + i + '_current'] = presetObj.current ? 'True' : 'False'
+							}
+						}
+					}
 				}
 			}
 

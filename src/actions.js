@@ -123,21 +123,16 @@ module.exports = {
 				name: 'Set Preset',
 				options: [
 					{
-						type: 'textinput',
+						type: 'dropdown',
 						label: 'Preset',
-						id: 'id',
-						min: 1,
-						max: 10,
-						default: 1,
-						step: 1,
-						required: true,
-						range: false,
+						id: 'preset',
+						default: self.CHOICES_PRESETS[0].id,
+						choices: self.CHOICES_PRESETS,
 					},
 				],
 				callback: async function (action) {
 					let options = action.options
-					let id = await self.parseVariablesInString(options.id)
-					self.DEVICE.decoderCurrentSetPreset(id)
+					self.DEVICE.decoderCurrentSetPreset(options.preset)
 				},
 			}
 

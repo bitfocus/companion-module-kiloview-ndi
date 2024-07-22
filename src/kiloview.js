@@ -143,6 +143,18 @@ class kiloviewNDI {
 		return this.authPost('/decoder/current/set', { name, url })
 	}
 
+	decoderPresets() {
+		return this.authPost('/decoder/preset/status')
+	}
+
+	decoderPresetAdd(id, name, url, group) {
+		return this.authPost('/decoder/preset/add', { id, name, url, group })
+	}
+
+	decoderPresetRemove(id) {
+		return this.authPost('/decoder/preset/remove', { id })
+	}
+
 	// color: #aabbcc with #
 	decoderPresetSetBlank(color) {
 		return this.authPost('/decoder/preset/set_blank', { color })
