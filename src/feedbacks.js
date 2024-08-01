@@ -124,12 +124,13 @@ module.exports = {
 				],
 				callback: function (feedback, bank) {
 					let options = feedback.options
-					if (options.compare === 'online' && self.STATE.info.data.online === true) {
-						return { color: options.fg, bgcolor: options.bg }
+					if (options.compare === 'online' && self.STATE?.info?.data?.online === true) {
+						return true
 					}
-					if (options.compare === 'offline' && self.STATE.info.data.online === false) {
-						return { color: options.fg, bgcolor: options.bg }
+					if (options.compare === 'offline' && self.STATE?.info?.data?.online === false) {
+						return true
 					}
+					return false
 				},
 			}
 

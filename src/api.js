@@ -20,7 +20,7 @@ module.exports = {
 
 			let authorized = false
 
-			if (self.config.useAuth == false) {
+			if (self.config.useAuth === false) {
 				self.log('info', 'No authentication required. Connecting to device...')
 				authorized = true
 			} else {
@@ -40,12 +40,10 @@ module.exports = {
 				}
 			}
 
-			if (authorized == true) {
+			if (authorized === true) {
 				self.updateStatus(InstanceStatus.Ok)
 				self.alias = self.DEVICE.alias
 				self.log('info', `Connected to Device with user: ${self.alias}`)
-				self.log('info', `Setting mode to ${self.config.mode}`)
-				let result = await self.DEVICE.modeSwitch(self.config.mode)
 
 				//reinitialize actions, feedbacks, variables, and presets because we changed the device mode
 				this.initActions()
@@ -56,15 +54,9 @@ module.exports = {
 				//wait 8 seconds before moving on, because the device needs time to switch modes
 				await new Promise((resolve) => setTimeout(resolve, 8000))
 
-				if (result.result == 'ok') {
-					self.checkState()
-					self.startInterval()
-
-					//only start NDI sources interval if in decoder mode
-					if (self.config.mode === 'decoder') {
-						self.startNDISourcesInterval()
-					}
-				}
+				self.checkState()
+				self.startInterval()
+				self.startNDISourcesInterval()
 			} else {
 				self.log('error', 'Authorization failed. Check your username and password and try again.')
 				self.updateStatus(InstanceStatus.ConnectionFailure, 'Authorization Failed. See log.')
@@ -91,7 +83,7 @@ module.exports = {
 		let self = this
 
 		if (self.config.polling) {
-			if (self.config.pollingrate === undefined) {
+			if (self.config.pollingrate === undefined || self.config.pollingrate < 1000) {
 				self.config.pollingrate = 1000
 			}
 
@@ -112,14 +104,10 @@ module.exports = {
 		let self = this
 
 		if (self.config.polling) {
-			if (self.config.pollingrate_sources === undefined) {
+			if (self.config.pollingrate_sources === undefined || self.config.pollingrate_sources < 1000) {
 				self.config.pollingrate_sources = 10000
 			}
 
-			self.log(
-				'info',
-				`Starting Update Interval: Fetching new NDI Sources from Device every ${self.config.pollingrate_sources}ms.`
-			)
 			self.INTERVAL_SOURCES = setInterval(self.checkSources.bind(self), parseInt(self.config.pollingrate_sources))
 		} else {
 			self.log('info', 'Polling is disabled. Module will not request new NDI sources at a regular rate.')
@@ -135,17 +123,19 @@ module.exports = {
 
 		try {
 			const mode = await self.DEVICE.modeGet()
-			self.STATE.mode = mode.data.mode
-			self.updateStatus(InstanceStatus.Ok)
+			if (mode.data.mode === 'encoder' || mode.data.mode === 'decoder') {
+				self.STATE.mode = mode.data.mode
+				self.updateStatus(InstanceStatus.Ok)
+			}
 		} catch (e) {
-			console.log(e)
+			self.log('error', 'Error getting mode: ' + e.message)
 			self.updateStatus(InstanceStatus.ConnectionFailure)
 			self.STATE.mode = 'N/A'
 			return
 		}
 
 		try {
-			if (self.STATE.mode == 'decoder') {
+			if (self.STATE.mode === 'decoder') {
 				const info = await self.DEVICE.decoderCurrentStatus()
 				self.STATE.info = info
 
@@ -158,7 +148,6 @@ module.exports = {
 					self.initActions()
 					self.initPresets()
 				}
-				
 			} else if (self.STATE.mode == 'encoder') {
 				const info = await self.DEVICE.encoderNdiStatus()
 				self.STATE.info = info
@@ -187,7 +176,7 @@ module.exports = {
 
 		let sourcesArray = []
 
-		if (self.STATE.mode == 'decoder') {
+		if (self.STATE.mode === 'decoder') {
 			const sources = await self.DEVICE.decoderDiscoveryGet()
 
 			if (sources && sources.data instanceof Array) {
@@ -209,10 +198,8 @@ module.exports = {
 			} else {
 				sourcesArray = [{ id: 'null', url: '', label: '- No sources available -' }]
 			}
-		} else {
+		} else if (self.STATE.mode === 'encoder') {
 			sourcesArray = [{ id: 'null', url: '', label: '- No sources available -' }]
-			self.log('debug', 'NDI Sources are only available in Decoder mode.')
-			clearInterval(self.INTERVAL_SOURCES)
 		}
 
 		//only update if sources have changed

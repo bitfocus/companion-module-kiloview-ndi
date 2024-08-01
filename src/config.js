@@ -67,7 +67,7 @@ module.exports = {
 			{
 				type: 'dropdown',
 				id: 'mode',
-				label: 'Default Mode',
+				label: 'Default Mode (if not known yet)',
 				width: 4,
 				default: self.CHOICES_CONVERTER_MODES[0].id,
 				choices: self.CHOICES_CONVERTER_MODES,

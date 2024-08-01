@@ -9,7 +9,7 @@ module.exports = {
 		variables.push({ variableId: 'resolution', name: 'Resolution' })
 		variables.push({ variableId: 'audio_format', name: 'Audio Format' })
 
-		if (self.config.mode == 'encoder') {
+		if (self.STATE.mode == 'encoder') {
 			//variables.push({ variableId: 'device_name', name: 'Device Name' })
 			variables.push({ variableId: 'video_signal', name: 'Video Signal Present' })
 			variables.push({ variableId: 'bitrate', name: 'NDI Bitrate' })
@@ -56,7 +56,7 @@ module.exports = {
 			variableObj.audio_format = self.STATE.info.data.audio_format || ''
 
 			if (self.STATE.info) {
-				if (self.config.mode === 'encoder') {
+				if (self.STATE.mode === 'encoder') {
 					variableObj.device_name = self.STATE.info.data.device_name
 					variableObj.video_signal = self.STATE.info.data.video_signal ? 'True' : 'False'
 					variableObj.bitrate = self.STATE.info.data.bitrate

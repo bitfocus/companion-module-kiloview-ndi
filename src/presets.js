@@ -119,7 +119,7 @@ module.exports = {
 			},
 		]
 
-		if (self.config.mode == 'encoder') {
+		if (self.STATE.mode == 'encoder') {
 			presets.push({
 				category: 'Encoder',
 				type: 'button',

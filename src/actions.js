@@ -16,22 +16,18 @@ module.exports = {
 			],
 			callback: function (action) {
 				let options = action.options
-				self.config.mode = options.mode
-				self.saveConfig(self.config)
-				self.configUpdated(self.config)
+				self.DEVICE.modeSwitch(options.mode)
 			},
 		}
 
 		actions.toggleMode = {
 			name: 'Toggle Mode',
 			callback: function (action) {
-				if (self.STATE.mode == 'encoder') {
-					self.config.mode = 'decoder'
+				if (self.STATE.mode && self.STATE.mode === 'encoder') {
+					self.DEVICE.modeSwitch('decoder')
 				} else {
-					self.config.mode = 'encoder'
+					self.DEVICE.modeSwitch('encoder')
 				}
-				self.saveConfig(self.config)
-				self.configUpdated(self.config)
 			},
 		}
 
@@ -56,7 +52,7 @@ module.exports = {
 			},
 		}
 
-		if (self.config.mode == 'encoder') {
+		if (self.STATE.mode === 'encoder') {
 			actions.encoder_setType = {
 				name: 'Set NDI Type',
 				options: [

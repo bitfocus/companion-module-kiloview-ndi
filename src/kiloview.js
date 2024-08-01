@@ -98,15 +98,14 @@ class kiloviewNDI {
 		const request = await fetch(`${this.baseURL}${url}`, options)
 
 		let result = await request.json()
-
-		if (result && result.data && result.data.result === 'auth-failed') {
+		if (result && result.result === 'auth-failed') {
 			// Try to reauthorize, will fail out if not ok
 			await this.authorize()
 			//recurse
 			return this.authPost(url, args)
 		} else {
-			if (result.data && result.data.result === 'error') {
-				let error = new Error(result.data.msg)
+			if (result && result.result === 'error') {
+				let error = new Error(result.msg)
 				error.name = 'KiloviewNDIError'
 				throw error
 			}
