@@ -212,4 +212,34 @@ module.exports = {
 			self.initPresets()
 		}
 	},
+
+	async picManageAdd(name, path) {
+		let self = this
+
+		if (!self.DEVICE) {
+			return
+		}
+
+		try {
+			self.log('info', `Adding Picture: ${name}`)
+			await self.DEVICE.picManageAdd(name, path)
+		} catch (e) {
+			console.log('Error with picManageAdd: ' + e.message)
+		}
+	},
+
+	async picManageReset(name) {
+		let self = this
+
+		if (!self.DEVICE) {
+			return
+		}
+
+		try {
+			self.log('info', `Resetting Picture: ${name}`)
+			await self.DEVICE.picManageReset(name)
+		} catch (e) {
+			console.log('Error with picManageReset: ' + e.message)
+		}
+	},
 }

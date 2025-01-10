@@ -226,6 +226,58 @@ module.exports = {
 			}
 		}
 
+		actions.picManageAdd = {
+			name: 'Picture Management: Change Image',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Image Type',
+					id: 'name',
+					default: 'NOSIGNAL',
+					choices: [
+						{ id: 'NOSIGNAL', label: 'No Signal' },
+						{ id: 'SPLASH', label: 'Decoding Mode' },
+						{ id: 'UNSUPPORT_CODEC', label: 'Unsupported Codec' },
+						{ id: 'UNSUPPORT', label: 'Unsupported Resolution' },
+					],
+				},
+				{
+					type: 'textinput',
+					label: 'Image Path',
+					id: 'path',
+					default: '',
+					useVariables: true,
+				},
+			],
+			callback: async function (action) {
+				let name = action.options.name
+				let path = await self.parseVariablesInString(action.options.path)
+				self.DEVICE.picManageAdd(name, path)
+			},
+		}
+
+		actions.picManageReset = {
+			name: 'Picture Management: Reset Image',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Image Type',
+					id: 'name',
+					default: 'NOSIGNAL',
+					choices: [
+						{ id: 'NOSIGNAL', label: 'No Signal' },
+						{ id: 'SPLASH', label: 'Decoding Mode' },
+						{ id: 'UNSUPPORT_CODEC', label: 'Unsupported Codec' },
+						{ id: 'UNSUPPORT', label: 'Unsupported Resolution' },
+					],
+				},
+			],
+			callback: function (action) {
+				let name = action.options.name
+				self.DEVICE.picManageReset(name)
+			},
+		}
+
 		self.setActionDefinitions(actions)
 	},
 }

@@ -105,6 +105,7 @@ class kiloviewNDI {
 			return this.authPost(url, args)
 		} else {
 			if (result && result.result === 'error') {
+				console.log(result)
 				let error = new Error(result.msg)
 				error.name = 'KiloviewNDIError'
 				throw error
@@ -217,6 +218,41 @@ class kiloviewNDI {
 	sysRestore() {
 		//restore to factory settings
 		return this.authPost('/sys/restore')
+	}
+
+	picManageAdd(name, filepath) {
+		const { exec } = require('child_process')
+
+		const curlCommand = `curl -X POST http://${this.connection_info.ip}/api/pic/add.json \
+		-H "API-Token: ${this.session.token}" \
+		-F "upload=@${filepath}" \
+		-F "name=${name}" \
+		-F "size_w=1920" \
+		-F "size_h=1080"`
+
+		exec(curlCommand, (error, stdout, stderr) => {})
+	}
+
+	picManageReset(name) {
+		let headers = {
+			'API-Session': this.session.session,
+			'API-Token': this.session.token,
+			'Content-Type': 'application/json',
+		}
+
+		// Send the POST request using fetch
+		fetch(`http://${this.connection_info.ip}/api/pic/resetPic.json`, {
+			method: 'POST',
+			body: JSON.stringify({ name: name }),
+			headers: headers,
+		})
+			.then((response) => response.json()) // Assuming the response is JSON
+			.then((data) => {
+				console.log('Response:', data)
+			})
+			.catch((error) => {
+				console.error('Error:', error)
+			})
 	}
 }
 
