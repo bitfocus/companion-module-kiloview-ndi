@@ -210,6 +210,46 @@ module.exports = {
 			}
 		}
 
+		if (self.config.picManage == true) {
+			/*feedbacks.picManage = {
+				type: 'advanced',
+				name: 'Picture Management - Show Picture',
+				description: 'Show the picture of the selected picture management category',
+				image: {
+					width: 72,
+					height: 72,
+				},
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Image Type',
+						id: 'name',
+						default: 'NOSIGNAL',
+						choices: [
+							{ id: 'NOSIGNAL', label: 'No Signal' },
+							{ id: 'SPLASH', label: 'Decoding Mode' },
+							{ id: 'UNSUPPORT_CODEC', label: 'Unsupported Codec' },
+							{ id: 'UNSUPPORT', label: 'Unsupported Resolution' },
+						],
+					},
+				],
+				callback: async function (feedback, bank) {
+					let options = feedback.options
+					if (self.PICS[options.name] !== undefined) {
+						console.log('attempting to draw...')
+						const png64 = self.PICS[options.name]
+
+						return {
+							imageBuffer: Buffer.from(png64, 'base64'),
+						}
+					}
+
+					console.log('No image found for feedback')
+					return {}
+				},
+			}*/
+		}
+
 		self.setFeedbackDefinitions(feedbacks)
 	},
 }
