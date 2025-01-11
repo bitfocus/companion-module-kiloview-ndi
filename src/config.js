@@ -111,6 +111,20 @@ module.exports = {
 			},
 			{
 				type: 'checkbox',
+				id: 'picManage',
+				label: 'Enable Picture Management Functions',
+				default: false,
+				width: 3,
+			},
+			{
+				type: 'static-text',
+				id: 'picManageInfo',
+				width: 9,
+				label: ' ',
+				value: `Enabling Picture Management will allow you to upload and reset pictures on the device.`,
+			},
+			{
+				type: 'checkbox',
 				id: 'verbose',
 				label: 'Enable Verbose Logging',
 				default: false,
@@ -118,7 +132,7 @@ module.exports = {
 			},
 			{
 				type: 'static-text',
-				id: 'info3',
+				id: 'verboseInfo',
 				width: 9,
 				label: ' ',
 				value: `Enabling Verbose Logging will push all incoming and outgoing data to the log, which is helpful for debugging.`,

@@ -36,4 +36,11 @@ module.exports = {
 	INTERVAL: null, //used for polling device for feedbacks
 	INTERVAL_SOURCES: null, //used for polling for new NDI sources
 	RECONNECT_INTERVAL: null, //used for reconnecting to device
+
+	PICS: {
+		NOSIGNAL: undefined,
+		SPLASH: undefined,
+		UNSUPPORT_CODEC: undefined,
+		UNSUPPORT: undefined,
+	}, //stores pictures from Picture Management for Feedbacks
 }

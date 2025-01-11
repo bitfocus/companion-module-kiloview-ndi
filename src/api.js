@@ -57,6 +57,10 @@ module.exports = {
 				self.checkState()
 				self.startInterval()
 				self.startNDISourcesInterval()
+
+				if (self.config.picManage == true) {
+					//self.getPics()
+				}
 			} else {
 				self.log('error', 'Authorization failed. Check your username and password and try again.')
 				self.updateStatus(InstanceStatus.ConnectionFailure, 'Authorization Failed. See log.')
@@ -163,6 +167,15 @@ module.exports = {
 			console.log('Error with server_info: ' + e.message)
 		}
 
+		//picture management
+		if (self.config.picManage == true) {
+			try {
+				//self.getPics()
+			} catch (e) {
+				console.log('Error with getPics: ' + e.message)
+			}
+		}
+
 		self.checkFeedbacks()
 		self.checkVariables()
 	},
@@ -225,6 +238,8 @@ module.exports = {
 			await self.DEVICE.picManageAdd(name, path)
 		} catch (e) {
 			console.log('Error with picManageAdd: ' + e.message)
+		} finally {
+			//self.getPics()
 		}
 	},
 
@@ -240,6 +255,97 @@ module.exports = {
 			await self.DEVICE.picManageReset(name)
 		} catch (e) {
 			console.log('Error with picManageReset: ' + e.message)
+		} finally {
+			//self.getPics()
 		}
+	},
+
+	async getPics() {
+		let self = this
+
+		if (!self.DEVICE) {
+			return
+		}
+
+		try {
+			if (self.config.verbose) {
+				self.log('info', 'Fetching Pictures from Picture Management...')
+				console.log('now: ' + new Date().toLocaleTimeString())
+			}
+
+			//request each png and store as base64 in self.PICS
+			let pic_NOSIGNAL_FULL = await self.fetchAndEncodeImage('NOSIGNAL')
+			let pic_SPLASH_FULL = await self.fetchAndEncodeImage('SPLASH')
+			let pic_UNSUPPORT_CODEC_FULL = await self.fetchAndEncodeImage('UNSUPPORT_CODEC')
+			let pic_UNSUPPORT_FULL = await self.fetchAndEncodeImage('UNSUPPORT')
+
+			//now check and see if what is in self.PICS is different from what we just fetched, one by one
+			if (self.PICS.NOSIGNAL_FULL !== pic_NOSIGNAL_FULL) {
+				self.PICS.NOSIGNAL_FULL = pic_NOSIGNAL_FULL
+				self.PICS.NOSIGNAL = await self.resize(pic_NOSIGNAL_FULL)
+			}
+
+			if (self.PICS.SPLASH_FULL !== pic_SPLASH_FULL) {
+				self.PICS.SPLASH_FULL = pic_SPLASH_FULL
+				self.PICS.SPLASH = await self.resize(pic_SPLASH_FULL)
+			}
+
+			if (self.PICS.UNSUPPORT_CODEC_FULL !== pic_UNSUPPORT_CODEC_FULL) {
+				self.PICS.UNSUPPORT_CODEC_FULL = pic_UNSUPPORT_CODEC_FULL
+				self.PICS.UNSUPPORT_CODEC = await self.resize(pic_UNSUPPORT_CODEC_FULL)
+			}
+
+			if (self.PICS.UNSUPPORT_FULL !== pic_UNSUPPORT_FULL) {
+				self.PICS.UNSUPPORT_FULL = pic_UNSUPPORT_FULL
+				self.PICS.UNSUPPORT = await self.resize(pic_UNSUPPORT_FULL)
+			}
+
+			if (self.config.verbose) {
+				console.log('done: ' + new Date().toLocaleTimeString())
+			}
+		} catch (e) {
+			console.log('Error with getPics(): ' + e.message)
+		}
+	},
+
+	async fetchAndEncodeImage(name) {
+		let self = this
+
+		try {
+			const response = await fetch(`http://${self.config.host}/img/${name}.png`)
+			const arrayBuffer = await response.arrayBuffer()
+			const buffer = Buffer.from(arrayBuffer)
+
+			// Convert the buffer to a base64 string
+			const base64EncodedImage = buffer.toString('base64')
+
+			return base64EncodedImage
+		} catch (error) {
+			console.error('Error fetching or encoding image:', error)
+			return undefined
+		}
+	},
+
+	async resize(base64) {
+		// Resize the image while maintaining aspect ratio, then add padding to make it 40x40
+		const sharp = require('sharp')
+
+		console.log('Resizing image...')
+
+		// Convert the base64 image to a buffer
+		const buffer = Buffer.from(base64, 'base64')
+
+		// Resize the image to 40x40
+		const resizedBuffer = await sharp(buffer)
+			.resize(72, 72, {
+				fit: 'inside', // Resize to fit within 40x40 while maintaining aspect ratio
+				background: { r: 0, g: 0, b: 0, alpha: 0 }, // Transparent background (you can change to white or any color)
+			})
+			.toBuffer() // Output as a buffer
+
+		// Convert the resized image buffer to base64
+		const base64EncodedImage = resizedBuffer.toString('base64')
+
+		return base64EncodedImage
 	},
 }
