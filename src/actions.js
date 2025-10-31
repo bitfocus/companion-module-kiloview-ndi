@@ -34,21 +34,21 @@ module.exports = {
 		actions.reboot = {
 			name: 'Reboot Device',
 			callback: function (action) {
-				self.DEVICE.reboot()
+				self.DEVICE.sysReboot()
 			},
 		}
 
 		actions.reconnect = {
 			name: 'Reset all NDI Connections',
 			callback: function (action) {
-				self.DEVICE.reconnect()
+				self.DEVICE.sysReconnect()
 			},
 		}
 
 		actions.restore = {
 			name: 'Restore to Factory Settings',
 			callback: function (action) {
-				self.DEVICE.restore()
+				self.DEVICE.sysRestore()
 			},
 		}
 
@@ -69,7 +69,7 @@ module.exports = {
 				],
 				callback: function (action) {
 					let options = action.options
-					self.DEVICE.encoderSetType(options.type)
+					self.DEVICE.encoderSetType(options.type) // This is not working at the moment : encoderSetType function is missing in kiloview.js.
 				},
 			}
 
@@ -89,7 +89,7 @@ module.exports = {
 				],
 				callback: function (action) {
 					let options = action.options
-					self.DEVICE.encoderSetAudioSignalType(options.type)
+					self.DEVICE.encoderNdiSetAudioSignalType(options.type)
 				},
 			}
 
@@ -111,7 +111,7 @@ module.exports = {
 				],
 				callback: function (action) {
 					let options = action.options
-					self.DEVICE.encoderSetAudioVolume(options.volume)
+					self.DEVICE.encoderNdiSetAudioVolume(options.volume)
 				},
 			}
 		} else {
