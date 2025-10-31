@@ -10,7 +10,8 @@
 	},
 	"license": "MIT",
 	"dependencies": {
-		"@companion-module/base": "^1.12.1"
+		"@companion-module/base": "^1.12.1",
+		"sharp": "^0.34.4"
 	},
 	"repository": {
 		"type": "git",
@@ -20,5 +21,6 @@
 		"@companion-module/tools": "^2.1.1",
 		"prettier": "^3.3.2"
 	},
+	"prettier": "@companion-module/tools/.prettierrc.json",
 	"packageManager": "yarn@4.6.0"
 }

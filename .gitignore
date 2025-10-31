@@ -4,5 +4,6 @@ package-lock.json
 /pkg
 /pkg.tz
 .yarn/
+*.tgz
 
 yarn-error.log
