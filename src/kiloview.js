@@ -28,7 +28,7 @@ class kiloviewNDI {
 			password,
 		}
 
-		this.baseURL = `http://${ip}/api/${this.apiVersion}`
+		this.baseURL = `http://${ip}/api`
 
 		this.authorized = false
 	}
@@ -42,7 +42,7 @@ class kiloviewNDI {
 			const { username, password } = this.connection_info
 
 			const params = new URLSearchParams()
-			params.append('username', username)
+			params.append('user', username)
 			params.append('password', password)
 
 			const request = await fetch(`${this.baseURL}/user/authorize`, {
