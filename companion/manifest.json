@@ -25,6 +25,6 @@
 		"entrypoint": "../index.js"
 	},
 	"manufacturer": "Kiloview",
-	"products": ["N40", "N50", "N60", "N5", "N6"],
+	"products": ["N40", "N50", "N5", "N6"],
 	"keywords": ["NDI", "Video"]
 }
