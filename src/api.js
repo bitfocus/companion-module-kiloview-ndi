@@ -3,6 +3,17 @@ const { InstanceStatus } = require('@companion-module/base')
 const kiloviewNDI = require('./kiloview')
 
 module.exports = {
+	// Action callbacks fire device calls without awaiting them. If the device ever returns
+	// an error result (eg. a rejected/invalid request), authPost() throws - and an un-awaited
+	// throw becomes an unhandled promise rejection, which crashes the whole module connection.
+	// Route every action's device call through this so a single bad response just gets logged.
+	runDeviceAction(promise, label) {
+		let self = this
+		Promise.resolve(promise).catch((e) => {
+			self.log('error', `${label} failed: ${e.message}`)
+		})
+	},
+
 	async initConnection() {
 		let self = this
 
@@ -55,6 +66,7 @@ module.exports = {
 				await new Promise((resolve) => setTimeout(resolve, 8000))
 
 				self.checkState()
+				self.checkSources()
 				self.startInterval()
 				self.startNDISourcesInterval()
 
@@ -93,13 +105,13 @@ module.exports = {
 
 			self.log(
 				'info',
-				`Starting Update Interval: Fetching new data from Device every ${self.config.pollingrate}ms.`
+				`Starting Update Interval: Fetching new data from Device every ${self.config.pollingrate}ms.`,
 			)
 			self.INTERVAL = setInterval(self.checkState.bind(self), parseInt(self.config.pollingrate))
 		} else {
 			self.log(
 				'info',
-				'Polling is disabled. Module will not request new data at a regular rate. Feedbacks and Variables will not update.'
+				'Polling is disabled. Module will not request new data at a regular rate. Feedbacks and Variables will not update.',
 			)
 		}
 	},
@@ -132,9 +144,11 @@ module.exports = {
 				self.updateStatus(InstanceStatus.Ok)
 			}
 		} catch (e) {
+			// Keep the last known mode instead of resetting to 'N/A' - a single failed poll
+			// (eg. a brief hiccup while the device reconfigures after a source/mode switch)
+			// shouldn't tear down the actions/feedbacks/choices built for the real mode.
 			self.log('error', 'Error getting mode: ' + e.message)
 			self.updateStatus(InstanceStatus.ConnectionFailure)
-			self.STATE.mode = 'N/A'
 			return
 		}
 
@@ -189,30 +203,45 @@ module.exports = {
 
 		let sourcesArray = []
 
-		if (self.STATE.mode === 'decoder') {
-			const sources = await self.DEVICE.decoderDiscoveryGet()
+		try {
+			if (self.STATE.mode === 'decoder') {
+				const sources = await self.DEVICE.decoderDiscoveryGet()
 
-			if (sources && sources.data instanceof Array) {
-				sources.data.forEach((source) => {
-					sourcesArray.push({
-						id: Buffer.from(source.name + ':' + source.url).toString('base64'),
-						label: source.name,
-					})
+				if (sources && sources.data instanceof Array) {
+					// cache the raw discovery data so actions can look up a source's "group" field,
+					// which decoder/current/set requires on this firmware but isn't part of the button id
+					self.STATE.sources = sources
 
-					if (source.children?.length) {
-						source.children.forEach((subsource) => {
-							sourcesArray.push({
-								id: Buffer.from(subsource.name + ':' + subsource.url).toString('base64'),
-								label: subsource.name,
-							})
+					sources.data.forEach((source) => {
+						sourcesArray.push({
+							id: Buffer.from(source.name + ':' + source.url).toString('base64'),
+							label: source.name,
 						})
-					}
-				})
-			} else {
+
+						if (source.children?.length) {
+							source.children.forEach((subsource) => {
+								sourcesArray.push({
+									id: Buffer.from(subsource.name + ':' + subsource.url).toString('base64'),
+									label: subsource.name,
+								})
+							})
+						}
+					})
+				} else {
+					sourcesArray = [{ id: 'null', url: '', label: '- No sources available -' }]
+				}
+			} else if (self.STATE.mode === 'encoder') {
 				sourcesArray = [{ id: 'null', url: '', label: '- No sources available -' }]
+			} else {
+				// mode not known yet (eg. still connecting) - don't wipe out a previously valid source list
+				return
 			}
-		} else if (self.STATE.mode === 'encoder') {
-			sourcesArray = [{ id: 'null', url: '', label: '- No sources available -' }]
+		} catch (e) {
+			// A single failed/slow discovery poll (eg. right after switching sources, while the
+			// device briefly rebuilds its NDI receive session) must not wipe out the previously
+			// valid source list, and must not throw unhandled out of this interval callback.
+			self.log('error', 'Error getting NDI sources: ' + e.message)
+			return
 		}
 
 		//only update if sources have changed
