@@ -52,8 +52,8 @@ module.exports = {
 			variableObj.mode = self.STATE.mode === 'encoder' ? 'Encoder' : 'Decoder'
 			variableObj.alias = self.alias || ''
 
-			variableObj.resolution = self.STATE.info.data.resolution || ''
-			variableObj.audio_format = self.STATE.info.data.audio_format || ''
+			variableObj.resolution = self.STATE?.info?.data?.resolution || ''
+			variableObj.audio_format = self.STATE?.info?.data?.audio_format || ''
 
 			if (self.STATE.info) {
 				if (self.STATE.mode === 'encoder') {
@@ -70,7 +70,7 @@ module.exports = {
 						for (let i = 1; i <= self.CHOICES_PRESETS.length; i++) {
 							//find the preset by id in self.STATE.presets
 							let presetObj = self.STATE.presets.data.find(
-								(preset) => preset.id.toString() == i.toString()
+								(preset) => preset.id.toString() == i.toString(),
 							)
 							if (presetObj) {
 								variableObj['preset' + i + '_enabled'] = presetObj.enable ? 'True' : 'False'
@@ -81,7 +81,14 @@ module.exports = {
 								variableObj['preset' + i + '_url'] = presetObj.url
 								variableObj['preset' + i + '_ip'] = presetObj.ip
 								variableObj['preset' + i + '_online'] = presetObj.online ? 'True' : 'False'
-								variableObj['preset' + i + '_current'] = presetObj.current ? 'True' : 'False'
+								// Some firmware versions don't populate preset.current at all, so derive it
+								// by comparing this preset's source URL against the currently decoding source.
+								variableObj['preset' + i + '_current'] =
+									presetObj.url &&
+									self.STATE?.info?.data?.url &&
+									presetObj.url === self.STATE.info.data.url
+										? 'True'
+										: 'False'
 							}
 						}
 					}

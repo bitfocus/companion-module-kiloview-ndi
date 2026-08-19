@@ -57,10 +57,10 @@ module.exports = {
 				],
 				callback: function (feedback, bank) {
 					let options = feedback.options
-					if (options.compare === 'online' && self.STATE.info.data.video_signal === true) {
+					if (options.compare === 'online' && self.STATE?.info?.data?.video_signal === true) {
 						return true
 					}
-					if (options.compare === 'offline' && self.STATE.info.data.video_signal === false) {
+					if (options.compare === 'offline' && self.STATE?.info?.data?.video_signal === false) {
 						return true
 					}
 
@@ -90,10 +90,10 @@ module.exports = {
 				],
 				callback: function (feedback, bank) {
 					let options = feedback.options
-					if (options.compare === 'online' && self.STATE.info.data.audio_signal === true) {
+					if (options.compare === 'online' && self.STATE?.info?.data?.audio_signal === true) {
 						return true
 					}
-					if (options.compare === 'offline' && self.STATE.info.dta.audio_signal === false) {
+					if (options.compare === 'offline' && self.STATE?.info?.data?.audio_signal === false) {
 						return true
 					}
 
@@ -153,8 +153,8 @@ module.exports = {
 				],
 				callback: function (feedback, bank) {
 					let options = feedback.options
-					let preset = self.STATE.presets.data.find(
-						(preset) => preset.id.toString() === options.preset.toString()
+					let preset = self.STATE?.presets?.data?.find(
+						(preset) => preset.id.toString() === options.preset.toString(),
 					)
 
 					if (preset && preset.enable) {
@@ -197,10 +197,19 @@ module.exports = {
 
 					if (self.STATE.presets && self.STATE.presets.data) {
 						let preset = self.STATE.presets.data.find(
-							(preset) => preset.id.toString() === options.preset.toString()
+							(preset) => preset.id.toString() === options.preset.toString(),
 						)
 
-						if (preset && preset.current == options.compare) {
+						// Some firmware versions don't populate preset.current at all, so derive it
+						// by comparing this preset's source URL against the currently decoding source.
+						let isCurrent = !!(
+							preset &&
+							preset.url &&
+							self.STATE?.info?.data?.url &&
+							preset.url === self.STATE.info.data.url
+						)
+
+						if (isCurrent === options.compare) {
 							return true
 						}
 					}
