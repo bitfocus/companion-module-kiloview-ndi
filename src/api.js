@@ -22,6 +22,7 @@ module.exports = {
 
 			if (self.config.useAuth === false) {
 				self.log('info', 'No authentication required. Connecting to device...')
+				self.DEVICE.setAuthorized(true)
 				authorized = true
 			} else {
 				try {

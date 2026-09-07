@@ -19,8 +19,6 @@ class kiloviewNDI {
 		session: '',
 	}
 
-	apiVersion = 'v1'
-
 	constructor(ip, username, password, timeout = 2000) {
 		this.connection_info = {
 			ip,
@@ -28,7 +26,30 @@ class kiloviewNDI {
 			password,
 		}
 
-		this.baseURL = `http://${ip}/api/${this.apiVersion}`
+		this.protocols = {
+			legacy: {
+				baseURL: `http://${ip}/api/v1`,
+				authorizePath: '/user/authorize',
+				usernameField: 'username',
+				endpoint: (path) => path,
+				headers: (data) => ({
+					'API-Session': data.session,
+					'API-Token': data.token,
+					'Content-Type': 'application/json',
+				}),
+			},
+			current: {
+				baseURL: `http://${ip}/api`,
+				authorizePath: '/user/authorize.json',
+				usernameField: 'user',
+				endpoint: (path) => `${path === '/tally/get' ? '/tally/status' : path}.json`,
+				headers: (data) => ({
+					Cookie: `token=${data.token}`,
+					'Content-Type': 'application/json',
+				}),
+			},
+		}
+		this.setProtocol('legacy')
 
 		this.authorized = false
 	}
@@ -37,51 +58,72 @@ class kiloviewNDI {
 		this.authorized = auth
 	}
 
-	async authorize() {
+	setProtocol(protocolName) {
+		this.protocolName = protocolName
+		this.protocol = this.protocols[protocolName]
+		this.baseURL = this.protocol.baseURL
+	}
+
+	async requestJson(url, options) {
+		const request = await fetch(url, options)
+		const responseText = await request.text()
+
 		try {
-			const { username, password } = this.connection_info
-
-			const params = new URLSearchParams()
-			params.append('username', username)
-			params.append('password', password)
-
-			const request = await fetch(`${this.baseURL}/user/authorize`, {
-				method: 'POST',
-				body: params,
-			})
-
-			let result = await request.json()
-
-			if (result && result.result === 'error') {
-				let error = new Error(result.msg)
-				error.name = 'KiloviewNDIError'
-				throw error
-			}
-
-			this.session = {
-				token: result.data.token,
-				session: result.data.session,
-			}
-
-			this.alias = result.data.alias
-
-			//create headers object for future requests
-			this.headers = {
-				'API-Session': this.session.session,
-				'API-Token': this.session.token,
-				'Content-Type': 'application/json',
-			}
-
-			this.authorized = true
-
-			return true
+			return JSON.parse(responseText)
 		} catch (error) {
-			throw error
-			return false
+			const result = new Error(
+				`Kiloview API returned an empty or non-JSON response for ${new URL(url).pathname} (HTTP ${request.status})`,
+			)
+			result.name = 'KiloviewNDIResponseError'
+			result.protocolError = true
+			throw result
 		}
 	}
 
-	async authPost(url, args) {
+	async authorize() {
+		const { username, password } = this.connection_info
+		let lastError
+
+		for (const protocolName of Object.keys(this.protocols)) {
+			const protocol = this.protocols[protocolName]
+			const params = new URLSearchParams()
+			params.append(protocol.usernameField, username)
+			params.append('password', password)
+
+			try {
+				const result = await this.requestJson(`${protocol.baseURL}${protocol.authorizePath}`, {
+					method: 'POST',
+					body: params,
+				})
+
+				if (result?.result === 'error') {
+					const error = new Error(result.msg)
+					error.name = 'KiloviewNDIError'
+					throw error
+				}
+				if (!result?.data?.token) {
+					throw new Error('Kiloview API authorization response did not contain a token')
+				}
+
+				this.setProtocol(protocolName)
+				this.session = {
+					token: result.data.token,
+					session: result.data.session,
+				}
+				this.alias = result.data.alias
+				this.headers = protocol.headers(result.data)
+				this.authorized = true
+				return true
+			} catch (error) {
+				if (error.name === 'KiloviewNDIError') throw error
+				lastError = error
+			}
+		}
+
+		throw lastError
+	}
+
+	async authPost(url, args, allowProtocolFallback = true) {
 		if (!this.authorized) {
 			await this.authorize()
 		}
@@ -95,9 +137,16 @@ class kiloviewNDI {
 			options.body = JSON.stringify(args)
 		}
 
-		const request = await fetch(`${this.baseURL}${url}`, options)
-
-		let result = await request.json()
+		let result
+		try {
+			result = await this.requestJson(`${this.baseURL}${this.protocol.endpoint(url)}`, options)
+		} catch (error) {
+			if (allowProtocolFallback && error.protocolError) {
+				this.setProtocol(this.protocolName === 'legacy' ? 'current' : 'legacy')
+				return this.authPost(url, args, false)
+			}
+			throw error
+		}
 		if (result && result.result === 'auth-failed') {
 			// Try to reauthorize, will fail out if not ok
 			await this.authorize()
