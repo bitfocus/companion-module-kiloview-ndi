@@ -1,4 +1,5 @@
 const { InstanceStatus } = require('@companion-module/base')
+const { ImageTransformer } = require('@julusian/image-rs')
 
 const kiloviewNDI = require('./kiloview')
 
@@ -327,25 +328,13 @@ module.exports = {
 	},
 
 	async resize(base64) {
-		// Resize the image while maintaining aspect ratio, then add padding to make it 40x40
-		const sharp = require('sharp')
-
 		console.log('Resizing image...')
 
-		// Convert the base64 image to a buffer
 		const buffer = Buffer.from(base64, 'base64')
+		const resizedImage = await ImageTransformer.fromEncodedImage(buffer)
+			.scale(72, 72, 'Fit')
+			.toEncodedImage('png')
 
-		// Resize the image to 40x40
-		const resizedBuffer = await sharp(buffer)
-			.resize(72, 72, {
-				fit: 'inside', // Resize to fit within 40x40 while maintaining aspect ratio
-				background: { r: 0, g: 0, b: 0, alpha: 0 }, // Transparent background (you can change to white or any color)
-			})
-			.toBuffer() // Output as a buffer
-
-		// Convert the resized image buffer to base64
-		const base64EncodedImage = resizedBuffer.toString('base64')
-
-		return base64EncodedImage
+		return resizedImage.buffer.toString('base64')
 	},
 }
