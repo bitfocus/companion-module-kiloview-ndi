@@ -38,9 +38,7 @@ class kiloviewInstance extends InstanceBase {
 
 	async destroy() {
 		try {
-			clearInterval(this.INTERVAL)
-			clearInterval(this.INTERVAL_SOURCES)
-			clearInterval(this.RECONNECT_INTERVAL)
+			this.stopConnection()
 		} catch (error) {
 			this.log('error', 'destroy error:' + error)
 		}

@@ -157,15 +157,37 @@ module.exports = {
 				],
 				callback: function (action) {
 					let options = action.options
-					let [name, ip, port] = Buffer.from(options.url, 'base64').toString().split(/:/)
-					let url = ip + ':' + port
+
+					if (!options.url || options.url === 'null') {
+						self.log('warn', 'Select NDI Source: no source selected')
+						return
+					}
 
 					// decoder/current/set requires a "group" field on this firmware even though it
 					// isn't documented - look up the source's group from the last discovery poll.
-					let source = self.STATE?.sources?.data?.find((s) => s.name === name && s.url === url)
-					let group = source ? source.group : ''
+					let source = self.findSourceById(options.url)
+					if (source) {
+						self.runDeviceAction(
+							self.DEVICE.decoderCurrentSetUrl(source.name, source.url, source.group ?? ''),
+							'Select NDI Source',
+						)
+						return
+					}
 
-					self.runDeviceAction(self.DEVICE.decoderCurrentSetUrl(name, url, group), 'Select NDI Source')
+					// Not in the last discovery poll: the id is base64 "name:ip:port", and the name may itself contain ':'
+					let parts = Buffer.from(options.url, 'base64').toString().split(':')
+					if (parts.length < 3) {
+						self.log('warn', `Select NDI Source: unrecognised source ${options.url}`)
+						return
+					}
+					let port = parts.pop()
+					let ip = parts.pop()
+					let name = parts.join(':')
+
+					self.runDeviceAction(
+						self.DEVICE.decoderCurrentSetUrl(name, `${ip}:${port}`, ''),
+						'Select NDI Source',
+					)
 				},
 			}
 
@@ -278,10 +300,12 @@ module.exports = {
 						useVariables: true,
 					},
 				],
-				callback: async function (action) {
-					let name = action.options.name
-					let path = await self.parseVariablesInString(action.options.path)
-					self.runDeviceAction(self.DEVICE.picManageAdd(name, path), 'Picture Management: Change Image')
+				callback: function (action) {
+					let options = action.options
+					self.runDeviceAction(
+						self.DEVICE.picManageAdd(options.name, options.path),
+						'Picture Management: Change Image',
+					)
 				},
 			}
 

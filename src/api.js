@@ -14,20 +14,34 @@ module.exports = {
 		})
 	},
 
+	stopConnection() {
+		let self = this
+
+		// Invalidates any initConnection() still awaiting, so it can't start intervals after this
+		self.CONNECTION_GENERATION++
+
+		clearInterval(self.INTERVAL)
+		clearInterval(self.INTERVAL_SOURCES)
+		clearTimeout(self.RECONNECT_INTERVAL)
+	},
+
 	async initConnection() {
 		let self = this
 
-		//clear any existing intervals
-		clearInterval(self.INTERVAL)
-		clearInterval(self.INTERVAL_SOURCES)
-		clearInterval(self.RECONNECT_INTERVAL)
+		self.stopConnection()
+		const generation = self.CONNECTION_GENERATION
 
 		if (self.config.host && self.config.host !== '') {
 			self.updateStatus(InstanceStatus.Connecting)
 			self.log('info', `Opening connection to ${self.config.host}`)
 			self.STATE.mode = self.config.mode //set default mode
 
-			self.DEVICE = new kiloviewNDI(self.config.host, self.config.username, self.config.password)
+			self.DEVICE = new kiloviewNDI(
+				self.config.host,
+				self.config.username,
+				self.config.password,
+				self.config.useAuth !== false,
+			)
 
 			let authorized = false
 
@@ -39,6 +53,9 @@ module.exports = {
 					self.log('info', 'Attempting to authorize...')
 					authorized = await self.DEVICE.authorize()
 				} catch (error) {
+					if (generation !== self.CONNECTION_GENERATION) {
+						return
+					}
 					if (error.name === 'KiloviewNDIError') {
 						self.log('error', 'Authorization failed. Check your username and password and try again.')
 						self.updateStatus(InstanceStatus.ConnectionFailure, 'Authorization Failed. See log.')
@@ -49,6 +66,10 @@ module.exports = {
 					}
 					return
 				}
+			}
+
+			if (generation !== self.CONNECTION_GENERATION) {
+				return
 			}
 
 			if (authorized === true) {
@@ -64,15 +85,18 @@ module.exports = {
 
 				//wait 8 seconds before moving on, because the device needs time to switch modes
 				await new Promise((resolve) => setTimeout(resolve, 8000))
+				if (generation !== self.CONNECTION_GENERATION) {
+					return
+				}
 
-				self.checkState()
+				// checkSources() depends on the mode that checkState() reads from the device
+				await self.checkState()
+				if (generation !== self.CONNECTION_GENERATION) {
+					return
+				}
 				self.checkSources()
 				self.startInterval()
 				self.startNDISourcesInterval()
-
-				if (self.config.picManage == true) {
-					//self.getPics()
-				}
 			} else {
 				self.log('error', 'Authorization failed. Check your username and password and try again.')
 				self.updateStatus(InstanceStatus.ConnectionFailure, 'Authorization Failed. See log.')
@@ -85,10 +109,7 @@ module.exports = {
 
 		self.updateStatus(InstanceStatus.ConnectionFailure, 'Reconnecting')
 
-		if (self.RECONNECT_INTERVAL !== undefined) {
-			clearInterval(self.RECONNECT_INTERVAL)
-			self.RECONNECT_INTERVAL = undefined
-		}
+		clearTimeout(self.RECONNECT_INTERVAL)
 
 		self.log('info', 'Attempting to reconnect in 30 seconds...')
 
@@ -99,15 +120,10 @@ module.exports = {
 		let self = this
 
 		if (self.config.polling) {
-			if (self.config.pollingrate === undefined || self.config.pollingrate < 1000) {
-				self.config.pollingrate = 1000
-			}
+			const rate = self.parsePollingRate(self.config.pollingrate, self.POLLINGRATE)
 
-			self.log(
-				'info',
-				`Starting Update Interval: Fetching new data from Device every ${self.config.pollingrate}ms.`,
-			)
-			self.INTERVAL = setInterval(self.checkState.bind(self), parseInt(self.config.pollingrate))
+			self.log('info', `Starting Update Interval: Fetching new data from Device every ${rate}ms.`)
+			self.INTERVAL = setInterval(self.checkState.bind(self), rate)
 		} else {
 			self.log(
 				'info',
@@ -116,15 +132,22 @@ module.exports = {
 		}
 	},
 
+	// The rate fields are free text, so anything non-numeric or under 1s falls back to the default
+	parsePollingRate(value, fallback) {
+		const rate = Number(value)
+		if (!Number.isFinite(rate) || rate < 1000) {
+			return fallback
+		}
+		return rate
+	},
+
 	async startNDISourcesInterval() {
 		let self = this
 
 		if (self.config.polling) {
-			if (self.config.pollingrate_sources === undefined || self.config.pollingrate_sources < 1000) {
-				self.config.pollingrate_sources = 10000
-			}
+			const rate = self.parsePollingRate(self.config.pollingrate_sources, self.POLLINGRATE_SOURCES)
 
-			self.INTERVAL_SOURCES = setInterval(self.checkSources.bind(self), parseInt(self.config.pollingrate_sources))
+			self.INTERVAL_SOURCES = setInterval(self.checkSources.bind(self), rate)
 		} else {
 			self.log('info', 'Polling is disabled. Module will not request new NDI sources at a regular rate.')
 		}
@@ -140,8 +163,18 @@ module.exports = {
 		try {
 			const mode = await self.DEVICE.modeGet()
 			if (mode.data.mode === 'encoder' || mode.data.mode === 'decoder') {
-				self.STATE.mode = mode.data.mode
 				self.updateStatus(InstanceStatus.Ok)
+
+				if (self.STATE.mode !== mode.data.mode) {
+					self.log('info', `Device mode is ${mode.data.mode}. Updating actions, feedbacks and variables.`)
+					self.STATE.mode = mode.data.mode
+					// info from the other mode has a different shape
+					self.STATE.info = undefined
+					self.initActions()
+					self.initFeedbacks()
+					self.initVariables()
+					self.initPresets()
+				}
 			}
 		} catch (e) {
 			// Keep the last known mode instead of resetting to 'N/A' - a single failed poll
@@ -181,17 +214,28 @@ module.exports = {
 			console.log('Error with server_info: ' + e.message)
 		}
 
-		//picture management
-		if (self.config.picManage == true) {
-			try {
-				//self.getPics()
-			} catch (e) {
-				console.log('Error with getPics: ' + e.message)
+		self.checkFeedbacks()
+		self.checkVariables()
+	},
+
+	sourceId(source) {
+		return Buffer.from(source.name + ':' + source.url).toString('base64')
+	},
+
+	findSourceById(id) {
+		let self = this
+
+		for (const source of self.STATE?.sources?.data ?? []) {
+			if (self.sourceId(source) === id) {
+				return source
+			}
+			const child = source.children?.find((subsource) => self.sourceId(subsource) === id)
+			if (child) {
+				return child
 			}
 		}
 
-		self.checkFeedbacks()
-		self.checkVariables()
+		return undefined
 	},
 
 	async checkSources() {
@@ -214,14 +258,14 @@ module.exports = {
 
 					sources.data.forEach((source) => {
 						sourcesArray.push({
-							id: Buffer.from(source.name + ':' + source.url).toString('base64'),
+							id: self.sourceId(source),
 							label: source.name,
 						})
 
 						if (source.children?.length) {
 							source.children.forEach((subsource) => {
 								sourcesArray.push({
-									id: Buffer.from(subsource.name + ':' + subsource.url).toString('base64'),
+									id: self.sourceId(subsource),
 									label: subsource.name,
 								})
 							})
@@ -253,128 +297,5 @@ module.exports = {
 			self.initVariables()
 			self.initPresets()
 		}
-	},
-
-	async picManageAdd(name, path) {
-		let self = this
-
-		if (!self.DEVICE) {
-			return
-		}
-
-		try {
-			self.log('info', `Adding Picture: ${name}`)
-			await self.DEVICE.picManageAdd(name, path)
-		} catch (e) {
-			console.log('Error with picManageAdd: ' + e.message)
-		} finally {
-			//self.getPics()
-		}
-	},
-
-	async picManageReset(name) {
-		let self = this
-
-		if (!self.DEVICE) {
-			return
-		}
-
-		try {
-			self.log('info', `Resetting Picture: ${name}`)
-			await self.DEVICE.picManageReset(name)
-		} catch (e) {
-			console.log('Error with picManageReset: ' + e.message)
-		} finally {
-			//self.getPics()
-		}
-	},
-
-	async getPics() {
-		let self = this
-
-		if (!self.DEVICE) {
-			return
-		}
-
-		try {
-			if (self.config.verbose) {
-				self.log('info', 'Fetching Pictures from Picture Management...')
-				console.log('now: ' + new Date().toLocaleTimeString())
-			}
-
-			//request each png and store as base64 in self.PICS
-			let pic_NOSIGNAL_FULL = await self.fetchAndEncodeImage('NOSIGNAL')
-			let pic_SPLASH_FULL = await self.fetchAndEncodeImage('SPLASH')
-			let pic_UNSUPPORT_CODEC_FULL = await self.fetchAndEncodeImage('UNSUPPORT_CODEC')
-			let pic_UNSUPPORT_FULL = await self.fetchAndEncodeImage('UNSUPPORT')
-
-			//now check and see if what is in self.PICS is different from what we just fetched, one by one
-			if (self.PICS.NOSIGNAL_FULL !== pic_NOSIGNAL_FULL) {
-				self.PICS.NOSIGNAL_FULL = pic_NOSIGNAL_FULL
-				self.PICS.NOSIGNAL = await self.resize(pic_NOSIGNAL_FULL)
-			}
-
-			if (self.PICS.SPLASH_FULL !== pic_SPLASH_FULL) {
-				self.PICS.SPLASH_FULL = pic_SPLASH_FULL
-				self.PICS.SPLASH = await self.resize(pic_SPLASH_FULL)
-			}
-
-			if (self.PICS.UNSUPPORT_CODEC_FULL !== pic_UNSUPPORT_CODEC_FULL) {
-				self.PICS.UNSUPPORT_CODEC_FULL = pic_UNSUPPORT_CODEC_FULL
-				self.PICS.UNSUPPORT_CODEC = await self.resize(pic_UNSUPPORT_CODEC_FULL)
-			}
-
-			if (self.PICS.UNSUPPORT_FULL !== pic_UNSUPPORT_FULL) {
-				self.PICS.UNSUPPORT_FULL = pic_UNSUPPORT_FULL
-				self.PICS.UNSUPPORT = await self.resize(pic_UNSUPPORT_FULL)
-			}
-
-			if (self.config.verbose) {
-				console.log('done: ' + new Date().toLocaleTimeString())
-			}
-		} catch (e) {
-			console.log('Error with getPics(): ' + e.message)
-		}
-	},
-
-	async fetchAndEncodeImage(name) {
-		let self = this
-
-		try {
-			const response = await fetch(`http://${self.config.host}/img/${name}.png`)
-			const arrayBuffer = await response.arrayBuffer()
-			const buffer = Buffer.from(arrayBuffer)
-
-			// Convert the buffer to a base64 string
-			const base64EncodedImage = buffer.toString('base64')
-
-			return base64EncodedImage
-		} catch (error) {
-			console.error('Error fetching or encoding image:', error)
-			return undefined
-		}
-	},
-
-	async resize(base64) {
-		// Resize the image while maintaining aspect ratio, then add padding to make it 40x40
-		const sharp = require('sharp')
-
-		console.log('Resizing image...')
-
-		// Convert the base64 image to a buffer
-		const buffer = Buffer.from(base64, 'base64')
-
-		// Resize the image to 40x40
-		const resizedBuffer = await sharp(buffer)
-			.resize(72, 72, {
-				fit: 'inside', // Resize to fit within 40x40 while maintaining aspect ratio
-				background: { r: 0, g: 0, b: 0, alpha: 0 }, // Transparent background (you can change to white or any color)
-			})
-			.toBuffer() // Output as a buffer
-
-		// Convert the resized image buffer to base64
-		const base64EncodedImage = resizedBuffer.toString('base64')
-
-		return base64EncodedImage
 	},
 }
