@@ -16,10 +16,9 @@ class kiloviewNDI {
 
 	session = {
 		token: '',
-		session: '',
 	}
 
-	apiVersion = 'v1'
+	apiVersion = 'v3'
 
 	constructor(ip, username, password, timeout = 2000) {
 		this.connection_info = {
@@ -28,9 +27,10 @@ class kiloviewNDI {
 			password,
 		}
 
-		this.baseURL = `http://${ip}/api/${this.apiVersion}`
+		this.baseURL = `http://${ip}/api`
 
 		this.authorized = false
+		this._ndiTypesCache = null
 	}
 
 	setAuthorized(auth) {
@@ -42,10 +42,10 @@ class kiloviewNDI {
 			const { username, password } = this.connection_info
 
 			const params = new URLSearchParams()
-			params.append('username', username)
+			params.append('user', username)
 			params.append('password', password)
 
-			const request = await fetch(`${this.baseURL}/user/authorize`, {
+			const request = await fetch(`${this.baseURL}/user/authorize.json`, {
 				method: 'POST',
 				body: params,
 			})
@@ -60,19 +60,18 @@ class kiloviewNDI {
 
 			this.session = {
 				token: result.data.token,
-				session: result.data.session,
 			}
 
 			this.alias = result.data.alias
 
-			//create headers object for future requests
+			//v3 API auth is passed via a "token" Cookie, not headers
 			this.headers = {
-				'API-Session': this.session.session,
-				'API-Token': this.session.token,
+				Cookie: `token=${this.session.token}`,
 				'Content-Type': 'application/json',
 			}
 
 			this.authorized = true
+			this._ndiTypesCache = null
 
 			return true
 		} catch (error) {
@@ -95,7 +94,7 @@ class kiloviewNDI {
 			options.body = JSON.stringify(args)
 		}
 
-		const request = await fetch(`${this.baseURL}${url}`, options)
+		const request = await fetch(`${this.baseURL}${url}.json`, options)
 
 		let result = await request.json()
 		if (result && result.result === 'auth-failed') {
@@ -139,8 +138,10 @@ class kiloviewNDI {
 		return this.authPost('/decoder/current/set', { id })
 	}
 
-	decoderCurrentSetUrl(name, url) {
-		return this.authPost('/decoder/current/set', { name, url })
+	// This firmware requires a "group" field on this endpoint even though it isn't
+	// documented - omitting it entirely makes the device reject the request (error 0301002).
+	decoderCurrentSetUrl(name, url, group = '') {
+		return this.authPost('/decoder/current/set', { name, url, group })
 	}
 
 	decoderPresets() {
@@ -148,7 +149,7 @@ class kiloviewNDI {
 	}
 
 	decoderPresetAdd(id, name, url, group) {
-		return this.authPost('/decoder/preset/add', { id, name, url, group })
+		return this.authPost('/decoder/preset/add', { position: id, name, url, group })
 	}
 
 	decoderPresetRemove(id) {
@@ -172,32 +173,56 @@ class kiloviewNDI {
 		return this.authPost('/decoder/output/set', { sample_rate })
 	}
 
-	encoderNdiStatus() {
-		return this.authPost('/encoder/ndi/status')
+	// The v3 API requires a "types" field ("ndihx" or "ndifull") on the encoder/ndi endpoints.
+	// Detect which one is active via get_NDI_enable (Full NDI on/off) and cache the result.
+	async resolveNdiTypes() {
+		if (this._ndiTypesCache) {
+			return this._ndiTypesCache
+		}
+
+		try {
+			const result = await this.authPost('/encoder/ndi/get_NDI_enable')
+			this._ndiTypesCache = result?.data?.enable ? 'ndifull' : 'ndihx'
+		} catch (error) {
+			this._ndiTypesCache = 'ndifull'
+		}
+
+		return this._ndiTypesCache
 	}
 
-	encoderNdiGetConfig() {
-		return this.authPost('/encoder/ndi/get_config')
+	async encoderNdiStatus() {
+		const types = await this.resolveNdiTypes()
+		return this.authPost('/encoder/ndi/status', { types })
+	}
+
+	async encoderNdiGetConfig() {
+		const types = await this.resolveNdiTypes()
+		return this.authPost('/encoder/ndi/get_config', { types })
 	}
 
 	encoderNdiSetAudioSignalType(type) {
-		return this.authPost('/encoder/ndi/set_audio', { type })
+		return this.authPost('/audio/set_audio', { signal: type })
 	}
 
 	encoderNdiSetAudioVolume(volume) {
-		return this.authPost('/encoder/ndi/set_audio', { volume })
+		return this.authPost('/audio/set_audio', { volume })
+	}
+
+	encoderSetType(ndi_connection) {
+		return this.encoderNdiSetConfig({ ndi_connection })
 	}
 
 	tallyGet() {
-		return this.authPost('/tally/get')
+		return this.authPost('/tally/status')
 	}
 
 	tallySet(pgm, pvw) {
 		return this.authPost('/tally/set', { pgm, pvw })
 	}
 
-	encoderNdiSetConfig(config) {
-		return this.authPost('/encoder/ndi/set_config', config)
+	async encoderNdiSetConfig(config) {
+		const types = await this.resolveNdiTypes()
+		return this.authPost('/encoder/ndi/set_config', { types, ...config })
 	}
 
 	sysServerInfo() {

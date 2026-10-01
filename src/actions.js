@@ -16,39 +16,36 @@ module.exports = {
 			],
 			callback: function (action) {
 				let options = action.options
-				self.DEVICE.modeSwitch(options.mode)
+				self.runDeviceAction(self.DEVICE.modeSwitch(options.mode), 'Set Mode')
 			},
 		}
 
 		actions.toggleMode = {
 			name: 'Toggle Mode',
 			callback: function (action) {
-				if (self.STATE.mode && self.STATE.mode === 'encoder') {
-					self.DEVICE.modeSwitch('decoder')
-				} else {
-					self.DEVICE.modeSwitch('encoder')
-				}
+				let target = self.STATE.mode && self.STATE.mode === 'encoder' ? 'decoder' : 'encoder'
+				self.runDeviceAction(self.DEVICE.modeSwitch(target), 'Toggle Mode')
 			},
 		}
 
 		actions.reboot = {
 			name: 'Reboot Device',
 			callback: function (action) {
-				self.DEVICE.sysReboot()
+				self.runDeviceAction(self.DEVICE.sysReboot(), 'Reboot Device')
 			},
 		}
 
 		actions.reconnect = {
 			name: 'Reset all NDI Connections',
 			callback: function (action) {
-				self.DEVICE.sysReconnect()
+				self.runDeviceAction(self.DEVICE.sysReconnect(), 'Reset all NDI Connections')
 			},
 		}
 
 		actions.restore = {
 			name: 'Restore to Factory Settings',
 			callback: function (action) {
-				self.DEVICE.sysRestore()
+				self.runDeviceAction(self.DEVICE.sysRestore(), 'Restore to Factory Settings')
 			},
 		}
 
@@ -69,7 +66,7 @@ module.exports = {
 				],
 				callback: function (action) {
 					let options = action.options
-					self.DEVICE.encoderSetType(options.type) // This is not working at the moment : encoderSetType function is missing in kiloview.js.
+					self.runDeviceAction(self.DEVICE.encoderSetType(options.type), 'Set NDI Type')
 				},
 			}
 
@@ -89,7 +86,10 @@ module.exports = {
 				],
 				callback: function (action) {
 					let options = action.options
-					self.DEVICE.encoderNdiSetAudioSignalType(options.type)
+					self.runDeviceAction(
+						self.DEVICE.encoderNdiSetAudioSignalType(options.type),
+						'Set Audio Signal Type',
+					)
 				},
 			}
 
@@ -111,7 +111,7 @@ module.exports = {
 				],
 				callback: function (action) {
 					let options = action.options
-					self.DEVICE.encoderNdiSetAudioVolume(options.volume)
+					self.runDeviceAction(self.DEVICE.encoderNdiSetAudioVolume(options.volume), 'Set Audio Volume')
 				},
 			}
 		} else {
@@ -128,7 +128,19 @@ module.exports = {
 				],
 				callback: async function (action) {
 					let options = action.options
-					self.DEVICE.decoderCurrentSetPreset(options.preset)
+
+					// decoder/current/set's "id" (preset) form is unreliable on this firmware
+					// (returns error 0301003) - route through name/url/group instead, which works.
+					let preset = self.STATE?.presets?.data?.find((p) => p.id.toString() === options.preset.toString())
+
+					if (preset && preset.enable && preset.url) {
+						self.runDeviceAction(
+							self.DEVICE.decoderCurrentSetUrl(preset.name, preset.url, preset.group),
+							'Set Preset',
+						)
+					} else {
+						self.log('warn', `Preset ${options.preset} is not defined`)
+					}
 				},
 			}
 
@@ -146,7 +158,14 @@ module.exports = {
 				callback: function (action) {
 					let options = action.options
 					let [name, ip, port] = Buffer.from(options.url, 'base64').toString().split(/:/)
-					self.DEVICE.decoderCurrentSetUrl(name, ip + ':' + port)
+					let url = ip + ':' + port
+
+					// decoder/current/set requires a "group" field on this firmware even though it
+					// isn't documented - look up the source's group from the last discovery poll.
+					let source = self.STATE?.sources?.data?.find((s) => s.name === name && s.url === url)
+					let group = source ? source.group : ''
+
+					self.runDeviceAction(self.DEVICE.decoderCurrentSetUrl(name, url, group), 'Select NDI Source')
 				},
 			}
 
@@ -173,7 +192,10 @@ module.exports = {
 				],
 				callback: function (action) {
 					let options = action.options
-					self.DEVICE.decoderSetOutputResolution(options.resolution)
+					self.runDeviceAction(
+						self.DEVICE.decoderSetOutputResolution(options.resolution),
+						'Set Output Resolution',
+					)
 				},
 			}
 
@@ -200,7 +222,10 @@ module.exports = {
 				],
 				callback: function (action) {
 					let options = action.options
-					self.DEVICE.decoderSetOutputFrameRate(options.frame_rate)
+					self.runDeviceAction(
+						self.DEVICE.decoderSetOutputFrameRate(options.frameate),
+						'Set Output Frame Rate',
+					)
 				},
 			}
 
@@ -221,7 +246,10 @@ module.exports = {
 				],
 				callback: function (action) {
 					let options = action.options
-					self.DEVICE.decoderSetOutputAudioSampleRate(options.sample_rate)
+					self.runDeviceAction(
+						self.DEVICE.decoderSetOutputAudioSampleRate(options.sample_rate),
+						'Set Output Audio Sample Rate',
+					)
 				},
 			}
 		}
@@ -253,7 +281,7 @@ module.exports = {
 				callback: async function (action) {
 					let name = action.options.name
 					let path = await self.parseVariablesInString(action.options.path)
-					self.DEVICE.picManageAdd(name, path)
+					self.runDeviceAction(self.DEVICE.picManageAdd(name, path), 'Picture Management: Change Image')
 				},
 			}
 
@@ -275,7 +303,7 @@ module.exports = {
 				],
 				callback: function (action) {
 					let name = action.options.name
-					self.DEVICE.picManageReset(name)
+					self.runDeviceAction(self.DEVICE.picManageReset(name), 'Picture Management: Reset Image')
 				},
 			}
 		}
