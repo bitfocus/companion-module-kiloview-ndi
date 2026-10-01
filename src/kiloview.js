@@ -7,6 +7,9 @@
 	Purpose: Switch to fetch library and support more functions
 */
 
+const fs = require('fs/promises')
+const path = require('path')
+
 class kiloviewNDI {
 	connection_info = {
 		ip: '',
@@ -20,7 +23,7 @@ class kiloviewNDI {
 
 	apiVersion = 'v3'
 
-	constructor(ip, username, password, timeout = 2000) {
+	constructor(ip, username, password, useAuth) {
 		this.connection_info = {
 			ip,
 			username,
@@ -29,12 +32,9 @@ class kiloviewNDI {
 
 		this.baseURL = `http://${ip}/api`
 
+		this.useAuth = useAuth
 		this.authorized = false
 		this._ndiTypesCache = null
-	}
-
-	setAuthorized(auth) {
-		this.authorized = auth
 	}
 
 	async authorize() {
@@ -64,44 +64,60 @@ class kiloviewNDI {
 
 			this.alias = result.data.alias
 
-			//v3 API auth is passed via a "token" Cookie, not headers
-			this.headers = {
-				Cookie: `token=${this.session.token}`,
-				'Content-Type': 'application/json',
-			}
-
 			this.authorized = true
 			this._ndiTypesCache = null
 
 			return true
 		} catch (error) {
 			throw error
-			return false
 		}
 	}
 
-	async authPost(url, args) {
-		if (!this.authorized) {
+	authPost(url, args) {
+		return this.authRequest(url, args ? JSON.stringify(args) : undefined, 'application/json', false)
+	}
+
+	// contentType is null for multipart bodies, so fetch can set the boundary itself
+	async authRequest(url, body, contentType, isRetry) {
+		if (this.useAuth && !this.authorized) {
 			await this.authorize()
+		}
+
+		let headers = {}
+		if (contentType) {
+			headers['Content-Type'] = contentType
+		}
+		if (this.useAuth) {
+			//v3 API auth is passed via a "token" Cookie, not headers
+			headers.Cookie = `token=${this.session.token}`
 		}
 
 		let options = {
 			method: 'POST',
-			headers: this.headers,
+			headers,
 		}
 
-		if (args) {
-			options.body = JSON.stringify(args)
+		if (body !== undefined) {
+			options.body = body
 		}
 
 		const request = await fetch(`${this.baseURL}${url}.json`, options)
 
 		let result = await request.json()
 		if (result && result.result === 'auth-failed') {
-			// Try to reauthorize, will fail out if not ok
-			await this.authorize()
-			//recurse
-			return this.authPost(url, args)
+			// A fresh token that is still rejected (eg. the user lacks HTTP API access) would otherwise loop forever
+			if (!this.useAuth || isRetry) {
+				let error = new Error(
+					this.useAuth
+						? 'Device rejected the request after re-authorizing. Check the user has HTTP API access.'
+						: 'Device requires authentication. Enable "Use Authentication" in the module config.',
+				)
+				error.name = 'KiloviewNDIError'
+				throw error
+			}
+
+			this.authorized = false
+			return this.authRequest(url, body, contentType, true)
 		} else {
 			if (result && result.result === 'error') {
 				console.log(result)
@@ -245,39 +261,20 @@ class kiloviewNDI {
 		return this.authPost('/sys/restore')
 	}
 
-	picManageAdd(name, filepath) {
-		const { exec } = require('child_process')
+	async picManageAdd(name, filepath) {
+		const data = await fs.readFile(filepath)
 
-		const curlCommand = `curl -X POST http://${this.connection_info.ip}/api/pic/add.json \
-		-H "API-Token: ${this.session.token}" \
-		-F "upload=@${filepath}" \
-		-F "name=${name}" \
-		-F "size_w=1920" \
-		-F "size_h=1080"`
+		const form = new FormData()
+		form.append('upload', new Blob([data]), path.basename(filepath))
+		form.append('name', name)
+		form.append('size_w', '1920')
+		form.append('size_h', '1080')
 
-		exec(curlCommand, (error, stdout, stderr) => {})
+		return this.authRequest('/pic/add', form, null, false)
 	}
 
 	picManageReset(name) {
-		let headers = {
-			'API-Session': this.session.session,
-			'API-Token': this.session.token,
-			'Content-Type': 'application/json',
-		}
-
-		// Send the POST request using fetch
-		fetch(`http://${this.connection_info.ip}/api/pic/resetPic.json`, {
-			method: 'POST',
-			body: JSON.stringify({ name: name }),
-			headers: headers,
-		})
-			.then((response) => response.json()) // Assuming the response is JSON
-			.then((data) => {
-				console.log('Response:', data)
-			})
-			.catch((error) => {
-				console.error('Error:', error)
-			})
+		return this.authPost('/pic/resetPic', { name })
 	}
 }
 

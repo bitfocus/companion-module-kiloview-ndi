@@ -2,7 +2,7 @@
 	"id": "kiloview-ndi",
 	"name": "kiloview-ndi",
 	"shortname": "kiloview",
-	"description": "Module to control Kiloview encoder/decoders",
+	"description": "Module to control Kiloview NDI encoder/decoders",
 	"version": "0.0.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/bitfocus/companion-module-kiloview-ndi.git",
