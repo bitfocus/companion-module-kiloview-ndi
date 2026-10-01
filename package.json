@@ -11,14 +11,14 @@
 	"license": "MIT",
 	"dependencies": {
 		"@companion-module/base": "^1.12.1",
-		"sharp": "^0.34.4"
+		"sharp": "^0.35.4"
 	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/bitfocus/companion-module-kiloview-ndi.git"
 	},
 	"devDependencies": {
-		"@companion-module/tools": "^2.6.1",
+		"@companion-module/tools": "^2.8.0",
 		"prettier": "^3.3.2"
 	},
 	"prettier": "@companion-module/tools/.prettierrc.json",
