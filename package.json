@@ -3,9 +3,9 @@
 	"version": "2.1.1",
 	"main": "index.js",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1",
+		"test": "node --test test/*.test.cjs",
 		"format": "prettier -w .",
-		"lint:raw": "eslint --ext .ts --ext .js --ignore-pattern dist --ignore-pattern pkg",
+		"lint:raw": "eslint",
 		"lint": "yarn lint:raw ."
 	},
 	"license": "MIT",
@@ -19,8 +19,12 @@
 	},
 	"devDependencies": {
 		"@companion-module/tools": "^2.9.0",
+		"eslint": "^9.39.0",
 		"prettier": "^3.3.2"
 	},
 	"prettier": "@companion-module/tools/.prettierrc.json",
-	"packageManager": "yarn@4.6.0"
+	"packageManager": "yarn@4.6.0",
+	"engines": {
+		"node": ">=26"
+	}
 }
